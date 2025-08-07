@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoreHorizontal, Eye, Edit, Play } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit } from 'lucide-react';
 import { GraphVisualization } from './GraphVisualization';
 
 interface Ontology {
@@ -15,7 +15,6 @@ interface OntologyCardProps {
   ontology: Ontology;
   onView: () => void;
   onEdit: () => void;
-  onUse: () => void;
 }
 
 export const OntologyCard: React.FC<OntologyCardProps> = ({
@@ -88,13 +87,6 @@ export const OntologyCard: React.FC<OntologyCardProps> = ({
             >
               <Edit className="h-3 w-3 mr-1" />
               Edit
-            </button>
-            <button
-              onClick={onUse}
-              className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-xs font-medium rounded-md text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-            >
-              <Play className="h-3 w-3 mr-1" />
-              Use
             </button>
           </div>
           <span className="text-xs text-gray-400">

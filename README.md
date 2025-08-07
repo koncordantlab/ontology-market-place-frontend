@@ -1,15 +1,10 @@
-# ontology-market-place-frontend
+# Ontology Management Application
 
 A modern, full-featured web application for creating, managing, and visualizing ontologies with Neo4j database integration and Firebase authentication.
 
-**Try it**: Clone, run `npm install && npm run dev`, and click "Demo Mode" for instant access!
+![Ontology Manager](https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop)
 
-![Image](https://github.com/user-attachments/assets/15dd7887-81b4-4c10-9831-1c37516f98e8)
-
-
-![Image](https://github.com/user-attachments/assets/caff512d-65f5-42f3-ae2e-c9b86ceaf22b)
-
-##  Features
+## 🚀 Features
 
 ### Core Functionality
 - **Ontology Creation & Editing**: Visual graph-based ontology editor with drag-and-drop functionality
@@ -393,3 +388,9 @@ This project is actively maintained and under development. The demo mode makes i
 - ✅ Local development environment
 - ✅ Hot reload and fast refresh
 - ✅ TypeScript support
+
+---
+
+Made with ❤️ by [Your Name](https://github.com/yourusername)
+
+**Try it now**: Clone, run `npm install && npm run dev`, and click "Demo Mode" for instant access!

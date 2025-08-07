@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { FileDropZone } from './FileDropZone';
 import { neo4jService, Neo4jCredentials } from '../services/neo4jService';
 
 interface DatabaseConnectionFormProps {
@@ -36,39 +35,9 @@ export const DatabaseConnectionForm: React.FC<DatabaseConnectionFormProps> = ({
     }
   };
 
-  const handleFileSelect = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const lines = content.split('\n');
-        
-        // Try to parse common credential file formats
-        lines.forEach(line => {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('NEO4J_URI=') || trimmed.startsWith('uri=')) {
-            setUri(trimmed.split('=')[1]);
-          } else if (trimmed.startsWith('NEO4J_USERNAME=') || trimmed.startsWith('username=')) {
-            setUsername(trimmed.split('=')[1]);
-          } else if (trimmed.startsWith('NEO4J_PASSWORD=') || trimmed.startsWith('password=')) {
-            setPassword(trimmed.split('=')[1]);
-          }
-        });
-      } catch (error) {
-        console.error('Error parsing credentials file:', error);
-      }
-    };
-    reader.readAsText(file);
-  };
 
   return (
     <div className="space-y-6">
-      <FileDropZone
-        onFileSelect={handleFileSelect}
-        title="Drop Neo4j credentials .txt file here"
-        acceptedFileTypes=".txt,.env"
-      />
-      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="uri" className="block text-sm font-medium text-gray-700 mb-2">

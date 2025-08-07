@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Settings, Download, Upload } from 'lucide-react';
+import { Search, Plus, Settings } from 'lucide-react';
 import { OntologyCard } from '../components/OntologyCard';
 
 interface User {
@@ -63,15 +63,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate, currentUse
     setFilteredOntologies(filtered);
   };
 
-  const handleExportAll = () => {
-    console.log('Exporting all ontologies...');
-    // Implement export logic
-  };
-
-  const handleImportOntology = () => {
-    console.log('Importing ontology...');
-    // Implement import logic
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -94,20 +85,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate, currentUse
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={handleImportOntology}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
-              >
-                <Upload className="h-4 w-4" />
-                <span>Import</span>
-              </button>
-              <button
-                onClick={handleExportAll}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
-              >
-                <Download className="h-4 w-4" />
-                <span>Export All</span>
-              </button>
               <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200">
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
@@ -139,9 +116,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate, currentUse
                   </button>
                   <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-200">
                     Recently Modified
-                  </button>
-                  <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-200">
-                    Shared with Me
                   </button>
                   <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors duration-200">
                     Favorites
@@ -189,7 +163,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate, currentUse
                   ontology={ontology}
                   onView={() => onNavigate('ontology-details', ontology.id)}
                   onEdit={() => onNavigate('edit-ontology', ontology.id)}
-                  onUse={() => onNavigate('use-ontology', ontology.id)}
                 />
               ))}
             </div>
