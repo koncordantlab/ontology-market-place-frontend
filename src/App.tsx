@@ -49,6 +49,20 @@ function App() {
     return unsubscribe;
   }, []);
 
+  // Handle Firebase permission errors by defaulting to demo mode
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.error && event.error.message && 
+          (event.error.message.includes('permission') || 
+           event.error.message.includes('Missing or insufficient permissions'))) {
+        console.log('Firebase permission error detected, you can use Demo Mode instead');
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
   const getPageTitle = () => {
     if (!currentUser) return 'Login';
     

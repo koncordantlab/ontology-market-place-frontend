@@ -37,9 +37,14 @@ class AuthService {
     // Listen for authentication state changes
     onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const user = await this.createUserFromFirebaseUser(firebaseUser);
-        this.currentUser = user;
-        await this.updateLastLogin(user.id);
+        try {
+          const user = await this.createUserFromFirebaseUser(firebaseUser);
+          this.currentUser = user;
+          await this.updateLastLogin(user.id);
+        } catch (error) {
+          console.error('Error in auth state change:', error);
+          this.currentUser = null;
+        }
       } else {
         this.currentUser = null;
       }
@@ -51,17 +56,29 @@ class AuthService {
 
   // Convert Firebase User to our User interface
   private async createUserFromFirebaseUser(firebaseUser: FirebaseUser): Promise<User> {
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    const userData = userDoc.data();
+    try {
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      const userData = userDoc.data();
 
-    return {
-      id: firebaseUser.uid,
-      name: userData?.name || firebaseUser.displayName || 'User',
-      email: firebaseUser.email || '',
-      photoURL: firebaseUser.photoURL || undefined,
-      createdAt: userData?.createdAt?.toDate(),
-      lastLoginAt: new Date()
-    };
+      return {
+        id: firebaseUser.uid,
+        name: userData?.name || firebaseUser.displayName || 'User',
+        email: firebaseUser.email || '',
+        photoURL: firebaseUser.photoURL || undefined,
+        createdAt: userData?.createdAt?.toDate(),
+        lastLoginAt: new Date()
+      };
+    } catch (error) {
+      console.error('Error creating user from Firebase user:', error);
+      // Fallback to basic user data if Firestore fails
+      return {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || 'User',
+        email: firebaseUser.email || '',
+        photoURL: firebaseUser.photoURL || undefined,
+        lastLoginAt: new Date()
+      };
+    }
   }
 
   // Register new user with email and password
@@ -101,6 +118,7 @@ class AuthService {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return await this.createUserFromFirebaseUser(userCredential.user);
     } catch (error: any) {
+      console.error('Sign in error:', error);
       throw this.handleAuthError(error);
     }
   }

@@ -3,12 +3,12 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDLuCKPyzACSmpdMtxyy_5NP_iokPzUtXw",
-  authDomain: "ontology-marketplace-efv1v3.firebaseapp.com",
-  projectId: "ontology-marketplace-efv1v3",
-  storageBucket: "ontology-marketplace-efv1v3.firebasestorage.app",
-  messagingSenderId: "280410777728",
-  appId: "1:280410777728:web:a0b11dced070904fff5e65"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -19,7 +19,5 @@ export const auth = getAuth(app);
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);
-
-// Connect to emulators if in development mode
 
 export default app;
