@@ -2,7 +2,7 @@
 
 A modern, full-featured web application for creating, managing, and visualizing ontologies with Neo4j database integration and Firebase authentication.
 
-![Ontology Manager](https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop)
+![Image](https://github.com/user-attachments/assets/91c5ffc6-56c5-4304-8f6f-3b6c7e90a025)
 
 ## 🚀 Features
 
