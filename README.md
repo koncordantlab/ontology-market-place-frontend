@@ -2,7 +2,7 @@
 
 A modern, full-featured web application for creating, managing, and visualizing ontologies with Firebase Cloud Functions integration, real-time data management, and comprehensive user dashboards.
 
-![Ontology Manager](https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop)
+![Ontology Manager]([https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop](https://private-user-images.githubusercontent.com/9831332/460401688-91c5ffc6-56c5-4304-8f6f-3b6c7e90a025.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTUxMjA4MzMsIm5iZiI6MTc1NTEyMDUzMywicGF0aCI6Ii85ODMxMzMyLzQ2MDQwMTY4OC05MWM1ZmZjNi01NmM1LTQzMDQtOGY2Zi0zYjZjN2U5MGEwMjUucG5nP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQVZDT0RZTFNBNTNQUUs0WkElMkYyMDI1MDgxMyUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNTA4MTNUMjEyODUzWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9MDI0N2FmYmU2MzY0ZjBkOTZjZmU4ZjkxNzkzODU0MmEyM2Y5MzM0ZDRkNzk2MzFmMDA3YWIwMTEwNDIwZGE1ZSZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QifQ.h0awuPu0-z66cVJKha_5PM6iVmYwDfsuWx8QwgqM8y8))
 
 ## 🚀 Features
 
