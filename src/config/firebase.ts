@@ -20,4 +20,7 @@ export const auth = getAuth(app);
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);
 
+// Note: Using production Firebase (not emulators)
+console.log('Using production Firebase services');
+
 export default app;

@@ -4,12 +4,12 @@ import { UseOntologyView } from './views/UseOntologyView';
 import { OntologyDetailsView } from './views/OntologyDetailsView';
 import { EditOntologyView } from './views/EditOntologyView';
 import { NewOntologyView } from './views/NewOntologyView';
-import { ProfileView } from './views/ProfileView';
+import { DashboardView } from './views/DashboardView';
 import { LoginView } from './views/LoginView';
 import { UserProfileSettings } from './components/UserProfileSettings';
 import { authService } from './services/authService';
 
-type ViewType = 'login' | 'profile' | 'use-ontology' | 'ontology-details' | 'edit-ontology' | 'new-ontology';
+type ViewType = 'login' | 'dashboard' | 'use-ontology' | 'ontology-details' | 'edit-ontology' | 'new-ontology';
 
 interface User {
   id: string;
@@ -31,7 +31,7 @@ function App() {
     const unsubscribe = authService.onAuthStateChange((user) => {
       setCurrentUser(user);
       if (user) {
-        setCurrentView('profile');
+        setCurrentView('dashboard');
       } else {
         setCurrentView('login');
       }
@@ -42,7 +42,7 @@ function App() {
     const user = authService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
-      setCurrentView('profile');
+      setCurrentView('dashboard');
     }
     setIsLoading(false);
 
@@ -67,8 +67,8 @@ function App() {
     if (!currentUser) return 'Login';
     
     switch (currentView) {
-      case 'profile':
-        return `${currentUser.name}'s Profile`;
+      case 'dashboard':
+        return 'Dashboard';
       case 'use-ontology':
         return 'Use Ontology';
       case 'ontology-details':
@@ -83,13 +83,13 @@ function App() {
   };
 
   const navigationItems = [
-    { id: 'profile', label: 'My Profile' },
-    { id: 'use-ontology', label: 'Use Ontology' },
-    { id: 'new-ontology', label: 'Create New' },
+    { id: 'dashboard' as ViewType, label: 'Dashboard' },
+    { id: 'use-ontology' as ViewType, label: 'Use Ontology' },
+    { id: 'new-ontology' as ViewType, label: 'Create New' },
   ];
 
-  const handleViewChange = (view: ViewType, ontologyId?: string) => {
-    setCurrentView(view);
+  const handleViewChange = (view: string, ontologyId?: string) => {
+    setCurrentView(view as ViewType);
     if (ontologyId) {
       setSelectedOntologyId(ontologyId);
     }
@@ -98,7 +98,7 @@ function App() {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    setCurrentView('profile');
+    setCurrentView('dashboard');
   };
 
   const handleLogout = async () => {
@@ -188,7 +188,7 @@ function App() {
             {/* User menu */}
             <div className="relative">
               <button 
-                onClick={() => handleViewChange('profile')}
+                onClick={() => setShowSettings(true)}
                 className="flex items-center space-x-2 p-2 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors duration-200"
               >
                 {currentUser.photoURL ? (
@@ -264,8 +264,8 @@ function App() {
 
       {/* Main Content */}
       <main className="min-h-screen">
-        {currentView === 'profile' && (
-          <ProfileView onNavigate={handleViewChange} currentUser={currentUser} />
+        {currentView === 'dashboard' && (
+          <DashboardView onNavigate={handleViewChange} onOpenSettings={() => setShowSettings(true)} />
         )}
         {currentView === 'use-ontology' && (
           <UseOntologyView onNavigate={handleViewChange} />

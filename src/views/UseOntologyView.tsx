@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { GraphVisualization } from '../components/GraphVisualization';
-import { Neo4jGraphVisualization } from '../components/Neo4jGraphVisualization';
-import { DatabaseConnectionForm } from '../components/DatabaseConnectionForm';
 import { Toggle } from '../components/Toggle';
 import { OntologySelector } from '../components/OntologySelector';
-import { neo4jService, Neo4jCredentials, Neo4jGraph } from '../services/neo4jService';
+import { ontologyService, Ontology } from '../services/ontologyService';
 
 interface UseOntologyViewProps {
   onNavigate: (view: string, ontologyId?: string) => void;
@@ -13,66 +11,73 @@ interface UseOntologyViewProps {
 export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) => {
   const [showMerged, setShowMerged] = useState(true);
   const [selectedOntologyId, setSelectedOntologyId] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [neo4jGraph, setNeo4jGraph] = useState<Neo4jGraph | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dbInfo, setDbInfo] = useState<any>(null);
+  const [ontologies, setOntologies] = useState<Ontology[]>([]);
+  const [isLoadingOntologies, setIsLoadingOntologies] = useState(false);
+  const [previewData, setPreviewData] = useState<Ontology[]>([]);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   useEffect(() => {
-    // Check if already connected on component mount
-    setIsConnected(neo4jService.isConnected());
+    // Load ontologies on component mount
+    loadOntologies();
+    // Load preview data on component mount
+    loadPreviewData();
   }, []);
 
-  const handleConnect = async (credentials: Neo4jCredentials) => {
-    setIsLoading(true);
+  const loadOntologies = async () => {
+    setIsLoadingOntologies(true);
     setError(null);
     
     try {
-      // Connection is handled in DatabaseConnectionForm
-      setIsConnected(true);
-      
-      // Fetch initial graph data
-      const graphData = await neo4jService.getGraphData(50);
-      setNeo4jGraph(graphData);
-      
-      // Get database info
-      const info = await neo4jService.getDatabaseInfo();
-      setDbInfo(info);
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      setIsConnected(false);
+      const result = await ontologyService.getOntologies();
+      if (result.error) {
+        setError(result.error);
+        setOntologies([]);
+      } else {
+        setOntologies(result.ontologies);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load ontologies';
+      setError(errorMessage);
+      setOntologies([]);
+      console.error('Error loading ontologies:', error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingOntologies(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    try {
-      await neo4jService.disconnect();
-      setIsConnected(false);
-      setNeo4jGraph(null);
-      setDbInfo(null);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disconnect');
-    }
-  };
-
-  const handleRefreshData = async () => {
-    if (!isConnected) return;
+  const loadPreviewData = async () => {
+    setIsLoadingPreview(true);
+    setError(null);
     
-    setIsLoading(true);
     try {
-      const graphData = await neo4jService.getGraphData(50);
-      setNeo4jGraph(graphData);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh data');
+      // Check if user is authenticated first
+      if (!ontologyService.isAuthenticated()) {
+        setError('Please log in with Firebase to view ontologies');
+        setPreviewData([]);
+        return;
+      }
+
+      const result = await ontologyService.searchOntologies();
+      if (result.success && result.data) {
+        setPreviewData(result.data);
+      } else {
+        setError(result.error || 'Failed to load preview data');
+        setPreviewData([]);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load preview data';
+      setError(errorMessage);
+      setPreviewData([]);
+      console.error('Error loading preview data:', error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingPreview(false);
     }
+  };
+
+  const handleRefreshPreview = async () => {
+    await loadPreviewData();
   };
 
   const handleUpload = () => {
@@ -80,26 +85,33 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
       alert('Please select an ontology first');
       return;
     }
-    if (!isConnected) {
-      alert('Please connect to a database first');
-      return;
-    }
-    console.log('Uploading ontology to database');
+    console.log('Uploading ontology');
     // Implement upload logic
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Selected Ontology Panel */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">SELECTED ONTOLOGY</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">SELECTED ONTOLOGY</h2>
+              <button
+                onClick={loadOntologies}
+                disabled={isLoadingOntologies}
+                className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+              >
+                {isLoadingOntologies ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
             
             <OntologySelector
               selectedId={selectedOntologyId}
               onSelect={setSelectedOntologyId}
               onNavigate={onNavigate}
+              ontologies={ontologies}
+              isLoading={isLoadingOntologies}
             />
             
             {selectedOntologyId && (
@@ -109,84 +121,124 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
             )}
           </div>
 
-          {/* Target Neo4j Database Panel */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">TARGET NEO4J DATABASE</h2>
-            
-            {isConnected ? (
-              <div className="space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-green-800">
-                        Connected to Neo4j Database
-                      </p>
-                      {dbInfo && (
-                        <p className="text-xs text-green-600">
-                          {dbInfo.nodeCount} nodes, {dbInfo.relationshipCount} relationships
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-800">{error}</p>
-                  </div>
-                )}
-                
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleRefreshData}
-                    disabled={isLoading}
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50"
-                  >
-                    {isLoading ? 'LOADING...' : 'REFRESH'}
-                  </button>
-                  <button
-                    onClick={handleDisconnect}
-                    className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
-                  >
-                    DISCONNECT
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <DatabaseConnectionForm 
-                onConnect={handleConnect}
-                onConnectionSuccess={() => {}}
-                onConnectionError={(error) => setError(error)}
-              />
-            )}
-          </div>
-
-          {/* Merged Data Model Preview Panel */}
+          {/* Ontology Preview Panel */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">DATA MODEL PREVIEW</h2>
+                <h2 className="text-lg font-semibold text-gray-900">ONTOLOGY PREVIEW</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  {isConnected ? 'LIVE NEO4J DATA' : 'MOCK DATA MODEL'}
+                  Available Ontologies from API
                 </p>
               </div>
+              <button
+                onClick={handleRefreshPreview}
+                disabled={isLoadingPreview}
+                className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+              >
+                {isLoadingPreview ? 'Loading...' : 'Refresh'}
+              </button>
             </div>
             
-            {isConnected && neo4jGraph ? (
-              <Neo4jGraphVisualization
-                nodes={neo4jGraph.nodes}
-                relationships={neo4jGraph.relationships}
-                className="h-64 mb-6"
-                onNodeClick={(node) => console.log('Selected node:', node)}
-              />
-            ) : (
-              <GraphVisualization className="h-64 mb-6" />
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md mb-4">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
             )}
             
-            <div className="flex items-center justify-between">
+            {isLoadingPreview ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Loading ontologies...</p>
+                </div>
+              </div>
+            ) : error && error.includes('log in') ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Authentication Required</h3>
+                  <p className="text-sm text-gray-600 mb-4">Please log in with Firebase to view ontologies</p>
+                  <button
+                    onClick={() => onNavigate('login')}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                  >
+                    Go to Login
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {previewData.length > 0 ? (
+                  previewData.map((ontology) => {
+                    // Safely handle potentially undefined properties
+                    const isPublic = ontology.properties?.is_public ?? false;
+                    const hasSource = !!ontology.properties?.source_url;
+                    
+                    return (
+                      <div key={ontology.id} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-start space-x-4">
+                          {/* Thumbnail */}
+                          <div className="flex-shrink-0">
+                            {ontology.properties?.image_url ? (
+                              <img 
+                                src={ontology.properties.image_url} 
+                                alt={`${ontology.name} thumbnail`}
+                                className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                                onError={(e) => {
+                                  // Fallback to placeholder if image fails to load
+                                  e.currentTarget.src = 'https://via.placeholder.com/64x64?text=📊';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-gray-900 truncate">{ontology.name}</h3>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{ontology.description}</p>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                isPublic 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {isPublic ? 'Public' : 'Private'}
+                              </span>
+                              {hasSource && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  Has Source
+                                </span>
+                              )}
+                              {ontology.properties?.image_url && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  Has Thumbnail
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No ontologies available</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="flex items-center justify-between mt-6">
               <Toggle
                 checked={showMerged}
                 onChange={setShowMerged}
@@ -194,9 +246,9 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
               />
               <button
                 onClick={handleUpload}
-                disabled={!selectedOntologyId || !isConnected}
+                disabled={!selectedOntologyId}
                 className={`px-6 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 ${
-                  selectedOntologyId && isConnected
+                  selectedOntologyId
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
@@ -205,14 +257,10 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
               </button>
             </div>
             
-            {(!selectedOntologyId || !isConnected) && (
+            {!selectedOntologyId && (
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                 <p className="text-sm text-yellow-800">
-                  {!selectedOntologyId && !isConnected
-                    ? 'Select an ontology and connect to database to upload'
-                    : !selectedOntologyId
-                    ? 'Select an ontology to upload'
-                    : 'Connect to database to upload'}
+                  Select an ontology to upload
                 </p>
               </div>
             )}

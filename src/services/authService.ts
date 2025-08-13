@@ -57,8 +57,14 @@ class AuthService {
   // Convert Firebase User to our User interface
   private async createUserFromFirebaseUser(firebaseUser: FirebaseUser): Promise<User> {
     try {
+      console.log('Creating user from Firebase user:', firebaseUser.uid);
+      console.log('Firebase user email:', firebaseUser.email);
+      
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       const userData = userDoc.data();
+      
+      console.log('User document exists:', userDoc.exists());
+      console.log('User data:', userData);
 
       return {
         id: firebaseUser.uid,
@@ -70,6 +76,8 @@ class AuthService {
       };
     } catch (error) {
       console.error('Error creating user from Firebase user:', error);
+      console.log('Using fallback user data');
+      
       // Fallback to basic user data if Firestore fails
       return {
         id: firebaseUser.uid,
