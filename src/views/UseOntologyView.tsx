@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { GraphVisualization } from '../components/GraphVisualization';
 import { Toggle } from '../components/Toggle';
 import { OntologySelector } from '../components/OntologySelector';
 import { ontologyService, Ontology } from '../services/ontologyService';
+import { FirebaseFunctionCaller } from '../config/firebaseFunctions';
 
 interface UseOntologyViewProps {
   onNavigate: (view: string, ontologyId?: string) => void;
@@ -17,6 +17,9 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
   const [isLoadingOntologies, setIsLoadingOntologies] = useState(false);
   const [previewData, setPreviewData] = useState<Ontology[]>([]);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  // Get the selected ontology object
+  const selectedOntology = ontologies.find(ont => ont.id === selectedOntologyId);
 
   useEffect(() => {
     // Load ontologies on component mount
@@ -41,7 +44,7 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
       const errorMessage = error instanceof Error ? error.message : 'Failed to load ontologies';
       setError(errorMessage);
       setOntologies([]);
-      console.error('Error loading ontologies:', error);
+
     } finally {
       setIsLoadingOntologies(false);
     }
@@ -70,7 +73,7 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
       const errorMessage = error instanceof Error ? error.message : 'Failed to load preview data';
       setError(errorMessage);
       setPreviewData([]);
-      console.error('Error loading preview data:', error);
+
     } finally {
       setIsLoadingPreview(false);
     }
@@ -80,13 +83,34 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
     await loadPreviewData();
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedOntologyId) {
       alert('Please select an ontology first');
       return;
     }
-    console.log('Uploading ontology');
-    // Implement upload logic
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Call Firebase function to upload ontology to database
+      const result = await FirebaseFunctionCaller.uploadToDatabase(
+        selectedOntologyId,
+        'neo4j', // or 'postgres', 'mysql', etc.
+        showMerged ? 'merge' : 'replace'
+      );
+      
+
+      
+      // Show success message
+      alert('Ontology uploaded successfully!');
+      
+    } catch (error) {
+
+      setError(error instanceof Error ? error.message : 'Upload failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -114,9 +138,68 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate }) 
               isLoading={isLoadingOntologies}
             />
             
-            {selectedOntologyId && (
+            {selectedOntologyId && selectedOntology && (
               <div className="mt-4">
-                <GraphVisualization className="h-80" />
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Selected Ontology Preview</h3>
+                  
+                  {/* Thumbnail Display */}
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      {selectedOntology.properties?.image_url ? (
+                        <img 
+                          src={selectedOntology.properties.image_url} 
+                          alt={`${selectedOntology.name} thumbnail`}
+                          className="w-32 h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            e.currentTarget.src = 'https://via.placeholder.com/128x128?text=📊';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-32 h-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center shadow-sm">
+                          <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Ontology Details */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 text-lg">{selectedOntology.name}</h4>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-3">{selectedOntology.description}</p>
+                      
+                      <div className="flex items-center space-x-2 mt-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          selectedOntology.properties?.is_public 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedOntology.properties?.is_public ? 'Public' : 'Private'}
+                        </span>
+                        
+                        {selectedOntology.properties?.source_url && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Has Source
+                          </span>
+                        )}
+                        
+                        {selectedOntology.properties?.image_url && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Has Thumbnail
+                          </span>
+                        )}
+                      </div>
+                      
+                      {selectedOntology.createdAt && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Created: {new Date(selectedOntology.createdAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

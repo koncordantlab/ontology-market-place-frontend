@@ -57,14 +57,8 @@ class AuthService {
   // Convert Firebase User to our User interface
   private async createUserFromFirebaseUser(firebaseUser: FirebaseUser): Promise<User> {
     try {
-      console.log('Creating user from Firebase user:', firebaseUser.uid);
-      console.log('Firebase user email:', firebaseUser.email);
-      
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       const userData = userDoc.data();
-      
-      console.log('User document exists:', userDoc.exists());
-      console.log('User data:', userData);
 
       return {
         id: firebaseUser.uid,
@@ -247,6 +241,25 @@ class AuthService {
   // Check if user is authenticated
   isAuthenticated(): boolean {
     return this.currentUser !== null;
+  }
+
+  // Get Firebase ID token for authentication
+  async getAuthToken(): Promise<string> {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User not authenticated. Please log in with Firebase to access the API.');
+    }
+    
+    try {
+      const token = await user.getIdToken();
+      if (!token) {
+        throw new Error('Failed to get authentication token');
+      }
+      return token;
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      throw new Error('Authentication failed. Please try logging in again.');
+    }
   }
 
   // Add auth state listener

@@ -4,7 +4,7 @@ import { ontologyService, Ontology } from '../services/ontologyService';
 import { authService } from '../services/authService';
 
 interface DashboardViewProps {
-  onNavigate: (view: string) => void;
+  onNavigate: (view: string, id?: string) => void;
   onOpenSettings?: () => void;
 }
 
@@ -412,6 +412,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
                             onClick={() => {
                               // Navigate to view/edit
                               console.log('View/Edit ontology:', ontology.id);
+                              onNavigate('ontology-details', ontology.id);
                             }}
                             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                           >
@@ -421,6 +422,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
                             onClick={() => {
                               // Navigate to edit
                               console.log('Edit ontology:', ontology.id);
+                              onNavigate('edit-ontology', ontology.id);
                             }}
                             className="text-sm text-green-600 hover:text-green-800 font-medium"
                           >

@@ -1,6 +1,5 @@
 import React from 'react';
 import { MoreHorizontal, Eye, Edit } from 'lucide-react';
-import { GraphVisualization } from './GraphVisualization';
 
 interface Ontology {
   id: string;
@@ -37,9 +36,25 @@ export const OntologyCard: React.FC<OntologyCardProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
-      {/* Thumbnail/Graph Preview */}
+      {/* Thumbnail */}
       <div className="p-4 border-b border-gray-100">
-        <GraphVisualization width={280} height={120} className="rounded-md" />
+        {ontology.thumbnail ? (
+          <img 
+            src={ontology.thumbnail} 
+            alt={`${ontology.title} thumbnail`}
+            className="w-full h-32 object-cover rounded-md"
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling!.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div className="w-full h-32 bg-gray-100 rounded-md flex items-center justify-center" style={{ display: ontology.thumbnail ? 'none' : 'flex' }}>
+          <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
       </div>
 
       {/* Content */}
