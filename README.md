@@ -48,7 +48,7 @@ cp .env.example .env
 #### 3.2 Add Firebase Configuration
 ```env
 # Firebase Configuration
-VITE_FIREBASE_API_KEY=437525635911614
+VITE_FIREBASE_API_KEY=key
 VITE_FIREBASE_AUTH_DOMAIN=ontology-marketplace-efv1v3.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=ontology-marketplace-efv1v3
 VITE_FIREBASE_STORAGE_BUCKET=ontology-marketplace-efv1v3.appspot.com
