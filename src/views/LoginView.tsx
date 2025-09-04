@@ -119,11 +119,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
   const getSubtitle = () => {
     switch (mode) {
-      case 'signup': return 'Create your Ontology Manager account';
+      case 'signup': return 'Create your Ontology Marketplace account';
       case 'reset': return 'Enter your email to reset your password';
       case 'demo': return 'Try the application with sample data';
       case 'emulator': return 'Set up Firebase emulator for development';
-      default: return 'Sign in to your Ontology Manager account';
+      default: return 'Sign in to your Ontology Marketplace account';
     }
   };
 
@@ -415,7 +415,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-600">
-          <p>© 2025 Ontology Manager. All rights reserved.</p>
+          <p>© 2025 Ontology Marketplace. All rights reserved.</p>
         </div>
       </div>
     </div>

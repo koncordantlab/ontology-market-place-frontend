@@ -1,4 +1,9 @@
 # Ontology Marketplace
+
+A modern web application for creating, managing, and using ontologies with Firebase Cloud Functions integration, real-time data management, and comprehensive user dashboards.
+
+![Ontology Marketplace](https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop)
+
 ## 🚀 Quick Start
 
 ### Step 1: Clone the Repository
@@ -48,7 +53,7 @@ cp .env.example .env
 #### 3.2 Add Firebase Configuration
 ```env
 # Firebase Configuration
-VITE_FIREBASE_API_KEY=key
+VITE_FIREBASE_API_KEY=437525635911614
 VITE_FIREBASE_AUTH_DOMAIN=ontology-marketplace-efv1v3.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=ontology-marketplace-efv1v3
 VITE_FIREBASE_STORAGE_BUCKET=ontology-marketplace-efv1v3.appspot.com
@@ -113,7 +118,7 @@ npm run dev
 
 ### Core Functionality
 - **Create Ontologies**: Add new ontologies with metadata and thumbnails
-- **Import from URL**: Import ontologies from external sources (OWL, RDF, TTL, JSON-LD)
+- **Import from URL**: Import ontologies from external sources (OWL format only)
 - **Search & Filter**: Find ontologies by name, description, tags, or status
 - **User Management**: Complete authentication and profile system
 - **Database Integration**: Upload ontologies to databases like Neo4j

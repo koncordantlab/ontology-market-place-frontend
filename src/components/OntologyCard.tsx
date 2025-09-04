@@ -19,8 +19,7 @@ interface OntologyCardProps {
 export const OntologyCard: React.FC<OntologyCardProps> = ({
   ontology,
   onView,
-  onEdit,
-  onUse
+  onEdit
 }) => {
   const getTagColor = (index: number) => {
     const colors = [

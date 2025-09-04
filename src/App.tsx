@@ -78,7 +78,7 @@ function App() {
       case 'new-ontology':
         return 'New Ontology';
       default:
-        return 'Ontology Manager';
+        return 'Ontology Marketplace';
     }
   };
 
@@ -157,7 +157,7 @@ function App() {
                 <span className="text-white font-bold text-sm">OM</span>
               </div>
               <span className="hidden sm:block text-lg font-semibold text-gray-900">
-                Ontology Manager
+                Ontology Marketplace
               </span>
             </div>
 
