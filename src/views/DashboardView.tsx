@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Settings, Eye, EyeOff, FileText, Calendar, Star, Tag } from 'lucide-react';
+import { Search, Plus, Settings, Eye, EyeOff, FileText, Calendar, Star, Tag, Trash } from 'lucide-react';
 import { ontologyService, Ontology } from '../services/ontologyService';
 import { authService } from '../services/authService';
 
@@ -88,6 +88,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
       setError('Failed to load ontologies');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle delete ontology
+  const handleDeleteOntology = async (ontologyId: string, ontologyName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${ontologyName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const result = await ontologyService.deleteOntology(ontologyId);
+      if (result.success) {
+        // Remove from local state
+        setOntologies(prev => prev.filter(o => o.id !== ontologyId));
+        console.log('Ontology deleted successfully');
+      } else {
+        setError(result.error || 'Failed to delete ontology');
+      }
+    } catch (error) {
+      console.error('Error deleting ontology:', error);
+      setError('Failed to delete ontology');
     }
   };
 
@@ -427,6 +448,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
                             className="text-sm text-green-600 hover:text-green-800 font-medium"
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOntology(ontology.id!, ontology.name)}
+                            className="text-sm text-red-600 hover:text-red-800 font-medium flex items-center space-x-1"
+                          >
+                            <Trash size={14} />
+                            <span>Delete</span>
                           </button>
                         </div>
                       </div>

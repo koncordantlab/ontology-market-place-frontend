@@ -33,6 +33,13 @@ export interface AddOntologyResponse {
 }
 
 class OntologyService {
+  // Using the new Firebase Functions v2 URLs from deployment
+  private readonly functionUrls = {
+    search_ontologies: 'https://search-ontologies-yzzefee2aq-uc.a.run.app',
+    add_ontology: 'https://add-ontology-yzzefee2aq-uc.a.run.app', 
+    update_ontology: 'https://update-ontology-yzzefee2aq-uc.a.run.app',
+    delete_ontology: 'https://delete-ontology-yzzefee2aq-uc.a.run.app'
+  };
   private readonly baseUrl = 'https://us-central1-ontology-marketplace-efv1v3.cloudfunctions.net';
   private fallbackUsed = false;
   private lastFallbackReason = '';
@@ -557,27 +564,93 @@ class OntologyService {
   async updateOntology(ontologyId: string, updates: Partial<Ontology>): Promise<AddOntologyResponse> {
     try {
       const token = await this.getAuthToken();
+      
+      // Prepare the payload in the format expected by the Firebase function
+      const payload = {
+        id: ontologyId,
+        name: updates.name || '',
+        description: updates.description || '',
+        properties: {
+          source_url: updates.properties?.source_url || '',
+          image_url: updates.properties?.image_url || '',
+          is_public: updates.properties?.is_public !== undefined ? updates.properties.is_public : false
+        },
+        tags: updates.properties?.tags || []
+      };
+
+      console.log('Sending update payload:', payload);
+      console.log('Request URL:', `${this.baseUrl}/update_ontology`);
+      console.log('Auth token available:', !!token);
+      
+      // Use the v1 update_ontology function (like add_ontology)
       const response = await fetch(`${this.baseUrl}/update_ontology`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          id: ontologyId,
-          ...updates
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Update ontology error response:', errorData);
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      return data;
+      console.log('Update response:', data);
+      
+      return {
+        success: true,
+        data: data.ontology || data
+      };
     } catch (error) {
       console.error('Error updating ontology:', error);
-      return { success: false, error: 'Failed to update ontology' };
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return { 
+        success: false, 
+        error: `Failed to update ontology: ${errorMessage}` 
+      };
+    }
+  }
+
+  /**
+   * Delete an ontology
+   */
+  async deleteOntology(ontologyId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const token = await this.getAuthToken();
+      
+      const payload = { id: ontologyId };
+      
+      const deleteUrl = 'https://us-central1-ontology-marketplace-efv1v3.cloudfunctions.net/delete_ontology';
+      const response = await fetch(deleteUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Delete ontology error response:', errorData);
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Delete response:', data);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting ontology:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return { 
+        success: false, 
+        error: `Failed to delete ontology: ${errorMessage}` 
+      };
     }
   }
 }
