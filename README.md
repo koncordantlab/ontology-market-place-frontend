@@ -2,8 +2,6 @@
 
 A modern web application for creating, managing, and using ontologies with Firebase Cloud Functions integration, real-time data management, and comprehensive user dashboards.
 
-![Ontology Marketplace](https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop)
-
 ## 🚀 Quick Start
 
 ### Step 1: Clone the Repository
