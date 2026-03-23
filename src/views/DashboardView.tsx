@@ -84,8 +84,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
 
     setFilteredOntologies(filtered);
-    setCurrentPage(1);
   }, [ontologies, searchQuery, selectedCategory, selectedTags]);
+
+  // Reset to page 1 only when filters change, not when ontologies data is refreshed
+  useEffect(() => {
+    setCurrentPage(1);
+    loadOntologies(1);
+  }, [searchQuery, selectedCategory, selectedTags]);
 
   const loadOntologies = async (page = 1) => {
     setIsLoading(true);
