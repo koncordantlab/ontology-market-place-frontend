@@ -32,9 +32,15 @@ export const CommentItem: React.FC<CommentItemProps> = React.memo(({
   const isAuthor = currentUserEmail === comment.author_email;
   const canDelete = isAuthor || isOntologyOwner;
 
-  const getInitials = (email: string) => {
-    const name = email.split('@')[0];
-    return name.substring(0, 2).toUpperCase();
+  const displayName = comment.author_name || comment.author_email || 'Unknown user';
+
+  const getInitials = (text: string) => {
+    if (!text) return '??';
+    const parts = text.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return text.substring(0, 2).toUpperCase();
   };
 
   const handleSaveEdit = () => {
@@ -57,7 +63,7 @@ export const CommentItem: React.FC<CommentItemProps> = React.memo(({
       <div className="flex-shrink-0">
         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
           <span className="text-xs font-medium text-white">
-            {getInitials(comment.author_email)}
+            {getInitials(displayName)}
           </span>
         </div>
       </div>
@@ -65,7 +71,7 @@ export const CommentItem: React.FC<CommentItemProps> = React.memo(({
       <div className="flex-grow min-w-0">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">{comment.author_email}</p>
+            <p className="text-sm font-medium text-gray-900">{displayName}</p>
             <p className="text-xs text-gray-500">{timeAgo(comment.created_at)}</p>
           </div>
           <div className="relative">

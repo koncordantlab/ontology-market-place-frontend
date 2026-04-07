@@ -527,7 +527,7 @@ export const OntologyDetailsView: React.FC<OntologyDetailsViewProps> = ({
     const tags: string[] = [];
     
     // Add tags based on description content
-    const description = ontology.description.toLowerCase();
+    const description = (ontology.description || '').toLowerCase();
     if (description.includes('medical') || description.includes('healthcare')) tags.push('medical');
     if (description.includes('e-commerce') || description.includes('product')) tags.push('e-commerce');
     if (description.includes('academic') || description.includes('research')) tags.push('academic');
