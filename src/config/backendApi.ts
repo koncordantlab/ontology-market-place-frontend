@@ -14,6 +14,7 @@ export const BACKEND_API = {
   // Ontology endpoints (matching Zuplo API Gateway)
   ONTOLOGIES: {
     LIST: '/search_ontologies',
+    COUNTS: '/ontology_counts',
     GET_BY_ID: (_id: string) => `/ontologies/${_id}`,
     CREATE: '/add_ontologies',
     UPDATE: (_id: string) => `/update_ontology/${_id}`,
@@ -329,6 +330,13 @@ export class BackendApiClient {
    */
   static async getNeo4jDatabaseInfo() {
     return this.request(BACKEND_API.NEO4J.DATABASE_INFO);
+  }
+
+  /**
+   * Get ontology category counts (total, public, private, recent)
+   */
+  static async getOntologyCounts(): Promise<{ total: number; public: number; private: number; recent: number }> {
+    return this.request(BACKEND_API.ONTOLOGIES.COUNTS, { method: 'GET' });
   }
 
   /**

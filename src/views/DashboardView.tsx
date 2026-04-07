@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Eye, EyeOff, FileText, Tag } from 'lucide-react';
 import { ontologyService, Ontology } from '../services/ontologyService';
 import { authService } from '../services/authService';
+import { BackendApiClient } from '../config/backendApi';
 
 interface DashboardViewProps {
   onNavigate: (view: string, id?: string) => void;
@@ -33,6 +34,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [user, setUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalOntologies, setTotalOntologies] = useState(0);
+  const [categoryCounts, setCategoryCounts] = useState({ total: 0, public: 0, private: 0, recent: 0 });
 
   // Load user data
   useEffect(() => {
@@ -46,6 +48,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       setUser(u);
       // Re-load ontologies so private ones appear after login
       loadOntologies();
+      loadCategoryCounts();
     });
     return unsubscribe;
   }, []);
@@ -53,7 +56,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   // Load ontologies
   useEffect(() => {
     loadOntologies();
+    loadCategoryCounts();
   }, []);
+
+  const loadCategoryCounts = async () => {
+    try {
+      const counts = await BackendApiClient.getOntologyCounts();
+      setCategoryCounts(counts);
+    } catch (e) {
+      console.error('Error loading category counts:', e);
+    }
+  };
 
   // Filter ontologies based on search, category, and tags
   useEffect(() => {
@@ -84,7 +97,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
 
     setFilteredOntologies(filtered);
-    setCurrentPage(1);
   }, [ontologies, searchQuery, selectedCategory, selectedTags]);
 
   const loadOntologies = async (page = 1) => {
@@ -111,22 +123,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Tags now provided by backend per ontology; no local heuristics.
 
-  // Generate categories dynamically
+  // Generate categories dynamically using server-side counts
   const categories: Category[] = useMemo(() => [
     {
       name: 'All Ontologies',
-      count: ontologies.length,
+      count: categoryCounts.total,
       filter: () => true
     },
     {
       name: 'Recently Modified',
-      count: ontologies.filter(onto => {
-        const date = new Date(onto.updatedAt || onto.createdAt || '');
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return date > weekAgo;
-      }).length,
-      filter: (onto) => {
+      count: categoryCounts.recent,
+      filter: (onto: Ontology) => {
         const date = new Date(onto.updatedAt || onto.createdAt || '');
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
@@ -135,15 +142,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     },
     {
       name: 'Public',
-      count: ontologies.filter(onto => onto.properties?.is_public).length,
-      filter: (onto) => onto.properties?.is_public || false
+      count: categoryCounts.public,
+      filter: (onto: Ontology) => onto.properties?.is_public || false
     },
     {
       name: 'Private',
-      count: ontologies.filter(onto => !onto.properties?.is_public).length,
-      filter: (onto) => !onto.properties?.is_public
+      count: categoryCounts.private,
+      filter: (onto: Ontology) => !onto.properties?.is_public
     }
-  ], [ontologies]);
+  ], [categoryCounts]);
 
   // Generate tags dynamically
   const generateTags = (): Tag[] => {
@@ -228,7 +235,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 <>
                   <p className="text-gray-600">{user.email}</p>
                   <p className="text-sm text-gray-500">
-                    {ontologies.length} ontologies • Member since {new Date().getFullYear()}
+                    {totalOntologies} ontologies • Member since {new Date().getFullYear()}
                   </p>
                 </>
               ) : (
@@ -334,7 +341,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               <div className="text-center py-12">
                 <p className="text-red-600">{error}</p>
                 <button
-                  onClick={loadOntologies}
+                  onClick={() => loadOntologies()}
                   className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                 >
                   Retry
