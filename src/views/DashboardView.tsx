@@ -316,7 +316,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Search Bar */}
             <div className="mb-6">
               <div className="relative">
@@ -453,42 +453,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
 
               {/* Pagination Controls */}
-              {Math.ceil(totalOntologies / ITEMS_PER_PAGE) > 1 && (
-                <div className="flex items-center justify-between mt-8">
-                  <p className="text-sm text-gray-600">
-                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalOntologies)} of {totalOntologies}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => loadOntologies(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                    >
-                      Previous
-                    </button>
-                    {Array.from({ length: Math.ceil(totalOntologies / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+              {(() => {
+                const totalPages = Math.ceil(totalOntologies / ITEMS_PER_PAGE);
+                if (totalPages <= 1) return null;
+
+                const windowSize = 1;
+                const items: (number | 'ellipsis-left' | 'ellipsis-right')[] = [];
+                items.push(1);
+                const windowStart = Math.max(2, currentPage - windowSize);
+                const windowEnd = Math.min(totalPages - 1, currentPage + windowSize);
+                if (windowStart > 2) items.push('ellipsis-left');
+                for (let i = windowStart; i <= windowEnd; i++) items.push(i);
+                if (windowEnd < totalPages - 1) items.push('ellipsis-right');
+                if (totalPages > 1) items.push(totalPages);
+
+                return (
+                  <div className="flex items-center justify-between mt-8">
+                    <p className="text-sm text-gray-600">
+                      Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalOntologies)} of {totalOntologies}
+                    </p>
+                    <div className="flex items-center space-x-2">
                       <button
-                        key={page}
-                        onClick={() => loadOntologies(page)}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                        onClick={() => loadOntologies(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                       >
-                        {page}
+                        Previous
                       </button>
-                    ))}
-                    <button
-                      onClick={() => loadOntologies(currentPage + 1)}
-                      disabled={currentPage === Math.ceil(totalOntologies / ITEMS_PER_PAGE)}
-                      className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                    >
-                      Next
-                    </button>
+                      {items.map((item, idx) =>
+                        typeof item === 'number' ? (
+                          <button
+                            key={item}
+                            onClick={() => loadOntologies(item)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                              currentPage === item
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        ) : (
+                          <span key={`${item}-${idx}`} className="px-2 text-sm text-gray-400 select-none">…</span>
+                        )
+                      )}
+                      <button
+                        onClick={() => loadOntologies(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               </>
             ) : (
               <div className="text-center py-12">
