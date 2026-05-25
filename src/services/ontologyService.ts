@@ -37,6 +37,94 @@ export interface AddOntologyResponse {
   error?: string;
 }
 
+// Safely read a value by trying multiple dotted paths; returns the first non-nullish.
+const getValue = (obj: any, ...paths: string[]): any => {
+  for (const path of paths) {
+    const keys = path.split('.');
+    let value = obj;
+    for (const key of keys) {
+      if (value === null || value === undefined) break;
+      value = value[key];
+    }
+    if (value !== null && value !== undefined) return value;
+  }
+  return null;
+};
+
+const parseDate = (dateValue: any): Date => {
+  if (!dateValue) return new Date();
+  if (dateValue && typeof dateValue === 'object' && dateValue._seconds) {
+    return new Date(dateValue._seconds * 1000);
+  }
+  if (dateValue instanceof Date) return dateValue;
+  try {
+    return new Date(dateValue);
+  } catch {
+    return new Date();
+  }
+};
+
+// Normalize a single raw ontology record from the backend into the frontend Ontology shape.
+const normalizeOntology = (raw: any): Ontology => {
+  const id = getValue(raw, 'id', 'uuid', '_id') || '';
+  const name = getValue(raw, 'name', 'title') || 'Untitled Ontology';
+  const description = getValue(raw, 'description', 'desc', 'summary') || '';
+
+  const sourceUrl = getValue(
+    raw,
+    'source_url', 'sourceUrl', 'file_url', 'fileUrl', 'url',
+    'properties.source_url', 'properties.sourceUrl'
+  ) || '';
+
+  const imageUrl = getValue(
+    raw,
+    'image_url', 'imageUrl', 'thumbnail', 'thumbnail_url', 'thumbnailUrl',
+    'properties.image_url', 'properties.imageUrl'
+  ) || '';
+
+  const isPublic = getValue(
+    raw,
+    'is_public', 'isPublic', 'public',
+    'properties.is_public', 'properties.isPublic'
+  ) ?? false;
+
+  const ownerId = getValue(raw, 'ownerId', 'owner_id', 'uid', 'userId', 'user_id') || '';
+
+  const createdAt = parseDate(
+    getValue(raw, 'createdAt', 'created_at', 'created', 'dateCreated', 'created_time')
+  );
+  const updatedAt = parseDate(
+    getValue(raw, 'updatedAt', 'updated_at', 'modified', 'dateModified', 'modified_at')
+  ) || createdAt;
+
+  return {
+    id,
+    name,
+    description,
+    properties: {
+      source_url: sourceUrl,
+      image_url: imageUrl,
+      is_public: isPublic,
+    },
+    ownerId,
+    createdAt,
+    updatedAt,
+    node_count: getValue(raw, 'node_count', 'nodeCount'),
+    relationship_count: getValue(raw, 'relationship_count', 'relationshipCount'),
+    file_url: getValue(raw, 'file_url', 'fileUrl'),
+    uid: getValue(raw, 'uid'),
+    score: getValue(raw, 'score'),
+    uuid: getValue(raw, 'uuid'),
+    tags: getValue(raw, 'tags', 'properties.tags') || [],
+    ...(Object.keys(raw || {}).reduce((acc, key) => {
+      if (!['id', 'name', 'title', 'description', 'properties', 'createdAt', 'created_at', 'updatedAt', 'updated_at'].includes(key)) {
+        acc[key] = raw[key];
+      }
+      return acc;
+    }, {} as any)),
+  } as Ontology;
+};
+
 class OntologyService {
   /**
    * Validate URL format
@@ -107,12 +195,42 @@ class OntologyService {
   }
 
   /**
+   * Fetch a single ontology by id (uuid). Hits GET /ontologies/{id} directly
+   * instead of paging through the full list to find it.
+   */
+  async getOntologyById(id: string): Promise<AddOntologyResponse> {
+    try {
+      const data: any = await BackendApiClient.getOntologyById(id);
+
+      let raw: any = null;
+      if (data && data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+        raw = data.data;
+      } else if (data && data.ontology) {
+        raw = data.ontology;
+      } else if (data && (data.id || data.uuid)) {
+        raw = data;
+      } else if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
+        raw = data.data[0];
+      }
+
+      if (!raw) {
+        return { success: false, error: 'Ontology not found' };
+      }
+
+      return { success: true, data: normalizeOntology(raw) };
+    } catch (error) {
+      console.error('Error fetching ontology by id:', error);
+      return { success: false, error: this.getUserFriendlyError(error) };
+    }
+  }
+
+  /**
    * Search for ontologies - returns a page of ontologies a user creates or public ontologies
    */
-  async searchOntologies(options: { limit?: number; offset?: number } = {}): Promise<OntologyResponse> {
+  async searchOntologies(options: { limit?: number; offset?: number; searchTerm?: string } = {}): Promise<OntologyResponse> {
     try {
-      const { limit = 6, offset = 0 } = options;
-      const data = await BackendApiClient.getOntologies(limit, offset);
+      const { limit = 6, offset = 0, searchTerm } = options;
+      const data = await BackendApiClient.getOntologies(limit, offset, searchTerm);
       
       // Handle different response structures
       let ontologiesArray: any[];
@@ -130,126 +248,12 @@ class OntologyService {
         ontologiesArray = [];
       }
       
-      // Normalize the data structure to ensure consistency
-      // Helper function to safely get nested property values
-      const getValue = (obj: any, ...paths: string[]): any => {
-        for (const path of paths) {
-          const keys = path.split('.');
-          let value = obj;
-          for (const key of keys) {
-            if (value === null || value === undefined) break;
-            value = value[key];
-          }
-          if (value !== null && value !== undefined) return value;
-        }
-        return null;
-      };
-
-      // Helper function to parse dates from various formats
-      const parseDate = (dateValue: any): Date => {
-        if (!dateValue) return new Date();
-        
-        // If it's a Firestore timestamp object
-        if (dateValue && typeof dateValue === 'object' && dateValue._seconds) {
-          return new Date(dateValue._seconds * 1000);
-        }
-        
-        // If it's already a Date object
-        if (dateValue instanceof Date) {
-          return dateValue;
-        }
-        
-        // If it's a string or number, try to parse it
-        try {
-          return new Date(dateValue);
-        } catch (e) {
-          return new Date();
-        }
-      };
-
-      // Extract total from response, fallback to array length
       const total = (data && data.data && typeof data.data.total === 'number')
         ? data.data.total
         : ontologiesArray.length;
 
-      const normalizedOntologies = ontologiesArray.map((ontology: any) => {
-        // Get values with fallbacks for all possible field name variations
-        const id = getValue(ontology, 'id', 'uuid', '_id') || '';
-        const name = getValue(ontology, 'name', 'title') || 'Untitled Ontology';
-        const description = getValue(ontology, 'description', 'desc', 'summary') || '';
-        
-        // Handle properties object or flat structure
-        const sourceUrl = getValue(
-          ontology, 
-          'source_url', 
-          'sourceUrl',
-          'file_url', 
-          'fileUrl',
-          'url',
-          'properties.source_url',
-          'properties.sourceUrl'
-        ) || '';
-        
-        const imageUrl = getValue(
-          ontology,
-          'image_url',
-          'imageUrl',
-          'thumbnail',
-          'thumbnail_url',
-          'thumbnailUrl',
-          'properties.image_url',
-          'properties.imageUrl'
-        ) || '';
-        
-        const isPublic = getValue(
-          ontology,
-          'is_public',
-          'isPublic',
-          'public',
-          'properties.is_public',
-          'properties.isPublic'
-        ) ?? false;
-        
-        const ownerId = getValue(ontology, 'ownerId', 'owner_id', 'uid', 'userId', 'user_id') || '';
-        
-        // Get created/updated dates from multiple possible fields
-        const createdAt = parseDate(
-          getValue(ontology, 'createdAt', 'created_at', 'created', 'dateCreated', 'created_time')
-        );
-        
-        const updatedAt = parseDate(
-          getValue(ontology, 'updatedAt', 'updated_at', 'modified', 'dateModified', 'updatedAt', 'modified_at')
-        ) || createdAt;
+      const normalizedOntologies = ontologiesArray.map(normalizeOntology);
 
-        return {
-          id,
-          name,
-          description,
-          properties: {
-            source_url: sourceUrl,
-            image_url: imageUrl,
-            is_public: isPublic
-          },
-          ownerId,
-          createdAt,
-          updatedAt,
-          // Preserve all additional fields
-          node_count: getValue(ontology, 'node_count', 'nodeCount'),
-          relationship_count: getValue(ontology, 'relationship_count', 'relationshipCount'),
-          file_url: getValue(ontology, 'file_url', 'fileUrl'),
-          uid: getValue(ontology, 'uid'),
-          score: getValue(ontology, 'score'),
-          uuid: getValue(ontology, 'uuid'),
-          tags: getValue(ontology, 'tags', 'properties.tags') || [],
-          // Add any other fields that might exist
-          ...(Object.keys(ontology).reduce((acc, key) => {
-            if (!['id', 'name', 'title', 'description', 'properties', 'createdAt', 'created_at', 'updatedAt', 'updated_at'].includes(key)) {
-              acc[key] = ontology[key];
-            }
-            return acc;
-          }, {} as any))
-        };
-      });
       return {
         success: true,
         data: normalizedOntologies,

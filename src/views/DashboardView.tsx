@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Eye, EyeOff, FileText, Tag } from 'lucide-react';
+import { Search, Plus, Eye, EyeOff, FileText, Tag, X } from 'lucide-react';
 import { ontologyService, Ontology } from '../services/ontologyService';
 import { authService } from '../services/authService';
 import { BackendApiClient } from '../config/backendApi';
@@ -29,6 +29,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [submittedSearchTerm, setSubmittedSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -68,19 +69,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
   };
 
-  // Filter ontologies based on search, category, and tags
+  // Client-side narrowing of the currently-loaded page by search query.
+  // Not used while the page only holds 6 items (search goes to the backend
+  // via handleSubmitSearch). Kept for re-use if ITEMS_PER_PAGE grows.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const filterByQuery = (list: Ontology[], query: string) => {
+    if (!query) return list;
+    const q = query.toLowerCase();
+    return list.filter(o =>
+      o.name.toLowerCase().includes(q) ||
+      o.description.toLowerCase().includes(q)
+    );
+  };
+
+  // Apply category and tag filters to the current page. Search-by-keystroke
+  // is intentionally not applied here — the search box submits to the backend.
   useEffect(() => {
     let filtered = ontologies;
 
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(ontology =>
-        ontology.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ontology.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply category filter
     if (selectedCategory !== 'all') {
       const category = categories.find(cat => cat.name.toLowerCase().replace(/\s+/g, '-') === selectedCategory);
       if (category) {
@@ -88,7 +94,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     }
 
-    // Apply tag filters
     if (selectedTags.length > 0) {
       filtered = filtered.filter(ontology => {
         const ontologyTags = ontology.tags || [];
@@ -97,15 +102,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
 
     setFilteredOntologies(filtered);
-  }, [ontologies, searchQuery, selectedCategory, selectedTags]);
+  }, [ontologies, selectedCategory, selectedTags]);
 
-  const loadOntologies = async (page = 1) => {
+  const loadOntologies = async (page = 1, term: string = submittedSearchTerm) => {
     setIsLoading(true);
     setError('');
 
     try {
       const offset = (page - 1) * ITEMS_PER_PAGE;
-      const result = await ontologyService.searchOntologies({ limit: ITEMS_PER_PAGE, offset });
+      const result = await ontologyService.searchOntologies({
+        limit: ITEMS_PER_PAGE,
+        offset,
+        searchTerm: term || undefined,
+      });
       if (result.success && result.data) {
         setOntologies(result.data);
         setTotalOntologies(result.total ?? result.data.length);
@@ -120,6 +129,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       setIsLoading(false);
     }
   };
+
+  const handleSubmitSearch = () => {
+    const term = searchQuery.trim();
+    setSubmittedSearchTerm(term);
+    loadOntologies(1, term);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    if (submittedSearchTerm) {
+      setSubmittedSearchTerm('');
+      loadOntologies(1, '');
+    }
+  };
+
+  // Auto-reset to full list when the user clears the input
+  useEffect(() => {
+    if (searchQuery === '' && submittedSearchTerm !== '') {
+      setSubmittedSearchTerm('');
+      loadOntologies(1, '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // Tags now provided by backend per ontology; no local heuristics.
 
@@ -316,7 +348,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Search Bar */}
             <div className="mb-6">
               <div className="relative">
@@ -325,10 +357,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSubmitSearch();
+                    }
+                  }}
                   placeholder="Search your ontologies..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-40 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      aria-label="Clear search"
+                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={handleSubmitSearch}
+                      className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                    >
+                      Search
+                    </button>
+                  )}
+                </div>
               </div>
+              {submittedSearchTerm && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Showing results for <span className="font-medium text-gray-700">"{submittedSearchTerm}"</span> — clear the box to return to all ontologies.
+                </p>
+              )}
             </div>
 
             {/* Ontologies Grid */}
@@ -453,42 +517,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
 
               {/* Pagination Controls */}
-              {Math.ceil(totalOntologies / ITEMS_PER_PAGE) > 1 && (
-                <div className="flex items-center justify-between mt-8">
-                  <p className="text-sm text-gray-600">
-                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalOntologies)} of {totalOntologies}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => loadOntologies(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                    >
-                      Previous
-                    </button>
-                    {Array.from({ length: Math.ceil(totalOntologies / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+              {(() => {
+                const totalPages = Math.ceil(totalOntologies / ITEMS_PER_PAGE);
+                if (totalPages <= 1) return null;
+
+                const windowSize = 1;
+                const items: (number | 'ellipsis-left' | 'ellipsis-right')[] = [];
+                items.push(1);
+                const windowStart = Math.max(2, currentPage - windowSize);
+                const windowEnd = Math.min(totalPages - 1, currentPage + windowSize);
+                if (windowStart > 2) items.push('ellipsis-left');
+                for (let i = windowStart; i <= windowEnd; i++) items.push(i);
+                if (windowEnd < totalPages - 1) items.push('ellipsis-right');
+                if (totalPages > 1) items.push(totalPages);
+
+                return (
+                  <div className="flex items-center justify-between mt-8">
+                    <p className="text-sm text-gray-600">
+                      Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalOntologies)} of {totalOntologies}
+                    </p>
+                    <div className="flex items-center space-x-2">
                       <button
-                        key={page}
-                        onClick={() => loadOntologies(page)}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                        onClick={() => loadOntologies(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                       >
-                        {page}
+                        Previous
                       </button>
-                    ))}
-                    <button
-                      onClick={() => loadOntologies(currentPage + 1)}
-                      disabled={currentPage === Math.ceil(totalOntologies / ITEMS_PER_PAGE)}
-                      className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                    >
-                      Next
-                    </button>
+                      {items.map((item, idx) =>
+                        typeof item === 'number' ? (
+                          <button
+                            key={item}
+                            onClick={() => loadOntologies(item)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                              currentPage === item
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        ) : (
+                          <span key={`${item}-${idx}`} className="px-2 text-sm text-gray-400 select-none">…</span>
+                        )
+                      )}
+                      <button
+                        onClick={() => loadOntologies(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               </>
             ) : (
               <div className="text-center py-12">
