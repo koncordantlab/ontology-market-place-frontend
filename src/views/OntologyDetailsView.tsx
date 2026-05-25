@@ -63,7 +63,7 @@ export const OntologyDetailsView: React.FC<OntologyDetailsViewProps> = ({
   const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
-    const fetchOntology = async (retryCount = 0) => {
+    const fetchOntology = async () => {
       if (!ontologyId) {
         setError('No ontology ID provided');
         setLoading(false);
@@ -72,25 +72,12 @@ export const OntologyDetailsView: React.FC<OntologyDetailsViewProps> = ({
 
       try {
         setLoading(true);
-        const result = await ontologyService.searchOntologies();
+        const result = await ontologyService.getOntologyById(ontologyId);
 
         if (result.success && result.data) {
-          // Find by UUID first, then fallback to ID for backward compatibility
-          const foundOntology = result.data.find(ont =>
-            (ont as any).uuid === ontologyId || ont.id === ontologyId
-          );
-          if (foundOntology) {
-            setOntology(foundOntology);
-          } else if (retryCount < 3) {
-            // Retry after a short delay for newly created ontologies
-            // that may not yet appear in search results
-            setTimeout(() => fetchOntology(retryCount + 1), 1000);
-            return; // Don't set loading to false yet
-          } else {
-            setError('Ontology not found');
-          }
+          setOntology(result.data);
         } else {
-          setError(result.error || 'Failed to fetch ontology');
+          setError(result.error || 'Ontology not found');
         }
       } catch (err) {
         setError('Error loading ontology');
