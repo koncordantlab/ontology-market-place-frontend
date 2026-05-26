@@ -186,9 +186,17 @@ export class BackendApiClient {
    * Get list of ontologies (search ontologies) with pagination.
    * Pass `searchTerm` to filter server-side via the /search_ontologies endpoint.
    */
-  static async getOntologies(limit = 6, offset = 0, searchTerm?: string) {
+  static async getOntologies(
+    limit = 6,
+    offset = 0,
+    searchTerm?: string,
+    filters?: { isPublic?: boolean; recentOnly?: boolean },
+  ) {
     const params: Record<string, string> = { limit: String(limit), offset: String(offset) };
     if (searchTerm && searchTerm.trim()) params.search_term = searchTerm.trim();
+    if (filters?.isPublic === true) params.is_public = 'true';
+    else if (filters?.isPublic === false) params.is_public = 'false';
+    if (filters?.recentOnly) params.recent_only = 'true';
     return this.request(BACKEND_API.ONTOLOGIES.LIST, {
       method: 'GET',
       params,
