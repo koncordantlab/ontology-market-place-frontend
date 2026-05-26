@@ -227,10 +227,16 @@ class OntologyService {
   /**
    * Search for ontologies - returns a page of ontologies a user creates or public ontologies
    */
-  async searchOntologies(options: { limit?: number; offset?: number; searchTerm?: string } = {}): Promise<OntologyResponse> {
+  async searchOntologies(options: {
+    limit?: number;
+    offset?: number;
+    searchTerm?: string;
+    isPublic?: boolean;
+    recentOnly?: boolean;
+  } = {}): Promise<OntologyResponse> {
     try {
-      const { limit = 6, offset = 0, searchTerm } = options;
-      const data = await BackendApiClient.getOntologies(limit, offset, searchTerm);
+      const { limit = 6, offset = 0, searchTerm, isPublic, recentOnly } = options;
+      const data = await BackendApiClient.getOntologies(limit, offset, searchTerm, { isPublic, recentOnly });
       
       // Handle different response structures
       let ontologiesArray: any[];

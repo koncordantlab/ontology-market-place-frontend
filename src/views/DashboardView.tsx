@@ -54,11 +54,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return unsubscribe;
   }, []);
 
-  // Load ontologies
+  // Load category counts once on mount.
   useEffect(() => {
-    loadOntologies();
     loadCategoryCounts();
   }, []);
+
+  // (Re)load ontologies whenever the active category changes.
+  // Also covers initial mount since selectedCategory has an initial value.
+  useEffect(() => {
+    loadOntologies(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory]);
 
   const loadCategoryCounts = async () => {
     try {
@@ -82,17 +88,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     );
   };
 
-  // Apply category and tag filters to the current page. Search-by-keystroke
-  // is intentionally not applied here — the search box submits to the backend.
+  // Apply tag filter client-side to the currently-loaded page.
+  // Category filtering happens server-side via loadOntologies.
   useEffect(() => {
     let filtered = ontologies;
-
-    if (selectedCategory !== 'all') {
-      const category = categories.find(cat => cat.name.toLowerCase().replace(/\s+/g, '-') === selectedCategory);
-      if (category) {
-        filtered = filtered.filter(category.filter);
-      }
-    }
 
     if (selectedTags.length > 0) {
       filtered = filtered.filter(ontology => {
@@ -102,18 +101,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
 
     setFilteredOntologies(filtered);
-  }, [ontologies, selectedCategory, selectedTags]);
+  }, [ontologies, selectedTags]);
 
-  const loadOntologies = async (page = 1, term: string = submittedSearchTerm) => {
+  // Map selectedCategory state into backend filter params.
+  const getCategoryFilters = (category: string): { isPublic?: boolean; recentOnly?: boolean } => {
+    switch (category) {
+      case 'public': return { isPublic: true };
+      case 'private': return { isPublic: false };
+      case 'recently-modified': return { recentOnly: true };
+      default: return {};
+    }
+  };
+
+  const loadOntologies = async (page = 1, term: string = submittedSearchTerm, category: string = selectedCategory) => {
     setIsLoading(true);
     setError('');
 
     try {
       const offset = (page - 1) * ITEMS_PER_PAGE;
+      const filters = getCategoryFilters(category);
       const result = await ontologyService.searchOntologies({
         limit: ITEMS_PER_PAGE,
         offset,
         searchTerm: term || undefined,
+        ...filters,
       });
       if (result.success && result.data) {
         setOntologies(result.data);
