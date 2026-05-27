@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Toggle } from '../components/Toggle';
 import { OntologySelector } from '../components/OntologySelector';
 import { ontologyService, Ontology } from '../services/ontologyService';
@@ -11,14 +11,20 @@ interface UseOntologyViewProps {
 }
 
 const ITEMS_PER_PAGE = 6;
+const DROPDOWN_PAGE_SIZE = 50;
 
 export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate, initialOntologyId }) => {
   const [showMerged, setShowMerged] = useState(true);
-  const [selectedOntologyId, setSelectedOntologyId] = useState<string | null>(initialOntologyId || null);
+  const [selectedOntology, setSelectedOntology] = useState<Ontology | null>(null);
+  const selectedOntologyId = selectedOntology?.id ?? null;
   const [error, setError] = useState<string | null>(null);
   const [ontologies, setOntologies] = useState<Ontology[]>([]);
+  const [ontologiesTotal, setOntologiesTotal] = useState(0);
   const [isLoadingOntologies, setIsLoadingOntologies] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
+  const [debouncedDropdownSearch, setDebouncedDropdownSearch] = useState('');
   const [previewData, setPreviewData] = useState<Ontology[]>([]);
+  const [previewTotal, setPreviewTotal] = useState(0);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -33,36 +39,75 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate, in
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [connectionMessage, setConnectionMessage] = useState('');
 
-  // Get the selected ontology object
-  const selectedOntology = ontologies.find(ont => ont.id === selectedOntologyId);
+  // Dropdown list = backend-searched ontologies, with the currently-selected
+  // one prepended so the dropdown can highlight it even when the active search
+  // page wouldn't otherwise include it.
+  const dropdownOntologies = useMemo(() => {
+    if (selectedOntology && !ontologies.some(o => o.id === selectedOntology.id)) {
+      return [selectedOntology, ...ontologies];
+    }
+    return ontologies;
+  }, [selectedOntology, ontologies]);
+
+  // Debounce dropdown search to avoid hammering the backend on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedDropdownSearch(dropdownSearch), 300);
+    return () => clearTimeout(id);
+  }, [dropdownSearch]);
 
   useEffect(() => {
     loadOntologies();
-    loadPreviewData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedDropdownSearch]);
+
+  useEffect(() => {
+    loadPreviewData(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When opened with a deep-linked ontology id, fetch that record directly so
+  // the form pre-populates regardless of where it sits in the paginated list.
+  useEffect(() => {
+    if (!initialOntologyId) return;
+    let cancelled = false;
+    ontologyService.getOntologyById(initialOntologyId).then(result => {
+      if (cancelled) return;
+      if (result.success && result.data) {
+        setSelectedOntology(result.data);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [initialOntologyId]);
 
   const loadOntologies = async () => {
     setIsLoadingOntologies(true);
     setError(null);
 
     try {
-      const result = await ontologyService.getOntologies();
-      if (result.error) {
-        setError(result.error);
+      const result = await ontologyService.searchOntologies({
+        limit: DROPDOWN_PAGE_SIZE,
+        offset: 0,
+        searchTerm: debouncedDropdownSearch || undefined,
+      });
+      if (!result.success) {
+        setError(result.error || 'Failed to load ontologies');
         setOntologies([]);
+        setOntologiesTotal(0);
       } else {
-        setOntologies(result.ontologies);
+        setOntologies(result.data || []);
+        setOntologiesTotal(result.total ?? (result.data?.length ?? 0));
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load ontologies';
       setError(errorMessage);
       setOntologies([]);
+      setOntologiesTotal(0);
     } finally {
       setIsLoadingOntologies(false);
     }
   };
 
-  const loadPreviewData = async () => {
+  const loadPreviewData = async (page = 1) => {
     setIsLoadingPreview(true);
     setError(null);
 
@@ -70,27 +115,33 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate, in
       if (!ontologyService.isAuthenticated()) {
         setError('Please log in with Firebase to view ontologies');
         setPreviewData([]);
+        setPreviewTotal(0);
         return;
       }
 
-      const result = await ontologyService.searchOntologies();
+      const offset = (page - 1) * ITEMS_PER_PAGE;
+      const result = await ontologyService.searchOntologies({ limit: ITEMS_PER_PAGE, offset });
       if (result.success && result.data) {
         setPreviewData(result.data);
+        setPreviewTotal(result.total ?? result.data.length);
+        setCurrentPage(page);
       } else {
         setError(result.error || 'Failed to load preview data');
         setPreviewData([]);
+        setPreviewTotal(0);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load preview data';
       setError(errorMessage);
       setPreviewData([]);
+      setPreviewTotal(0);
     } finally {
       setIsLoadingPreview(false);
     }
   };
 
   const handleRefreshPreview = async () => {
-    await loadPreviewData();
+    await loadPreviewData(currentPage);
   };
 
   const handleTestConnection = async () => {
@@ -289,10 +340,13 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate, in
                 </div>
                 <OntologySelector
                   selectedId={selectedOntologyId}
-                  onSelect={setSelectedOntologyId}
+                  onSelect={(ont) => setSelectedOntology(ont as Ontology)}
                   onNavigate={onNavigate}
-                  ontologies={ontologies}
+                  ontologies={dropdownOntologies}
                   isLoading={isLoadingOntologies}
+                  searchQuery={dropdownSearch}
+                  onSearchChange={setDropdownSearch}
+                  totalAvailable={ontologiesTotal}
                 />
                 {selectedOntology && (
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
@@ -461,9 +515,7 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate, in
               <>
               <div className="space-y-4">
                 {previewData.length > 0 ? (
-                  previewData
-                    .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                    .map((ontology) => {
+                  previewData.map((ontology) => {
                     const isPublic = ontology.properties?.is_public ?? false;
                     const hasSource = !!ontology.properties?.source_url;
 
@@ -532,25 +584,25 @@ export const UseOntologyView: React.FC<UseOntologyViewProps> = ({ onNavigate, in
               </div>
 
               {/* Pagination */}
-              {previewData.length > ITEMS_PER_PAGE && (
+              {previewTotal > ITEMS_PER_PAGE && (
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
                   <p className="text-sm text-gray-600">
-                    Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, previewData.length)} of {previewData.length}
+                    Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, previewTotal)} of {previewTotal}
                   </p>
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
+                      onClick={() => loadPreviewData(currentPage - 1)}
+                      disabled={currentPage === 1 || isLoadingPreview}
                       className="px-3 py-1 text-sm rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                     >
                       Previous
                     </button>
                     <span className="text-sm text-gray-700">
-                      {currentPage} / {Math.ceil(previewData.length / ITEMS_PER_PAGE)}
+                      {currentPage} / {Math.ceil(previewTotal / ITEMS_PER_PAGE)}
                     </span>
                     <button
-                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(previewData.length / ITEMS_PER_PAGE), p + 1))}
-                      disabled={currentPage >= Math.ceil(previewData.length / ITEMS_PER_PAGE)}
+                      onClick={() => loadPreviewData(currentPage + 1)}
+                      disabled={currentPage >= Math.ceil(previewTotal / ITEMS_PER_PAGE) || isLoadingPreview}
                       className="px-3 py-1 text-sm rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                     >
                       Next

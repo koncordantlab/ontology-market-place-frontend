@@ -17,10 +17,13 @@ interface Ontology {
 
 interface OntologySelectorProps {
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (ontology: Ontology) => void;
   onNavigate: (view: string, ontologyId?: string) => void;
   ontologies: Ontology[];
   isLoading?: boolean;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  totalAvailable?: number;
 }
 
 export const OntologySelector: React.FC<OntologySelectorProps> = ({
@@ -28,26 +31,19 @@ export const OntologySelector: React.FC<OntologySelectorProps> = ({
   onSelect,
   onNavigate,
   ontologies,
-  isLoading = false
+  isLoading = false,
+  searchQuery,
+  onSearchChange,
+  totalAvailable,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const selectedOntology = ontologies.find(ont => ont.id === selectedId);
-  
-  const filteredOntologies = ontologies.filter(ontology => {
-    const name = ontology.name || '';
-    const description = ontology.description || '';
-    const query = searchQuery.toLowerCase();
-    
-    return name.toLowerCase().includes(query) ||
-           description.toLowerCase().includes(query);
-  });
 
-  const handleSelect = (ontologyId: string) => {
-    onSelect(ontologyId);
+  const handleSelect = (ontology: Ontology) => {
+    onSelect(ontology);
     setIsOpen(false);
-    setSearchQuery('');
+    onSearchChange('');
   };
 
   return (
@@ -73,11 +69,16 @@ export const OntologySelector: React.FC<OntologySelectorProps> = ({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search ontologies..."
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            {typeof totalAvailable === 'number' && totalAvailable > ontologies.length && (
+              <p className="mt-2 text-xs text-gray-500">
+                Showing {ontologies.length} of {totalAvailable} — refine your search to narrow down.
+              </p>
+            )}
           </div>
 
           {/* Options */}
@@ -88,7 +89,7 @@ export const OntologySelector: React.FC<OntologySelectorProps> = ({
                 <span className="ml-2 text-sm text-gray-500">Loading ontologies...</span>
               </div>
             ) : (
-              filteredOntologies.map((ontology) => {
+              ontologies.map((ontology) => {
                 // Safely handle potentially undefined properties
                 const isPublic = ontology.properties?.is_public ?? false;
                 const hasSource = !!ontology.properties?.source_url;
@@ -96,7 +97,7 @@ export const OntologySelector: React.FC<OntologySelectorProps> = ({
                 return (
                   <button
                     key={ontology.id}
-                    onClick={() => handleSelect(ontology.id!)}
+                    onClick={() => handleSelect(ontology)}
                     className={`w-full text-left px-3 py-3 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors duration-200 ${
                       selectedId === ontology.id ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
                     }`}
@@ -150,7 +151,7 @@ export const OntologySelector: React.FC<OntologySelectorProps> = ({
               })
             )}
 
-            {!isLoading && filteredOntologies.length === 0 && (
+            {!isLoading && ontologies.length === 0 && (
               <div className="px-3 py-4 text-sm text-gray-500 text-center">
                 No ontologies found
               </div>
