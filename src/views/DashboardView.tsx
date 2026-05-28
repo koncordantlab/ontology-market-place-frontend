@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Eye, EyeOff, FileText, Tag, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { ontologyService, Ontology } from '../services/ontologyService';
 import { authService } from '../services/authService';
 import { BackendApiClient } from '../config/backendApi';
@@ -35,7 +36,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [user, setUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalOntologies, setTotalOntologies] = useState(0);
-  const [categoryCounts, setCategoryCounts] = useState({ total: 0, public: 0, private: 0, recent: 0 });
+  const [categoryCounts, setCategoryCounts] = useState({ total: 0, public: 0, private: 0, recent: 0, deleted: 0 });
+  const [purgeTarget, setPurgeTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isPurging, setIsPurging] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Load user data
   useEffect(() => {
@@ -104,11 +109,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   }, [ontologies, selectedTags]);
 
   // Map selectedCategory state into backend filter params.
-  const getCategoryFilters = (category: string): { isPublic?: boolean; recentOnly?: boolean } => {
+  const getCategoryFilters = (category: string): { isPublic?: boolean; recentOnly?: boolean; deletedOnly?: boolean } => {
     switch (category) {
       case 'public': return { isPublic: true };
       case 'private': return { isPublic: false };
       case 'recently-modified': return { recentOnly: true };
+      case 'recently-deleted': return { deletedOnly: true };
       default: return {};
     }
   };
@@ -155,6 +161,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleRestore = (ontologyId: string, ontologyName: string) => {
+    setRestoreTarget({ id: ontologyId, name: ontologyName });
+  };
+
+  const confirmRestore = async () => {
+    if (!restoreTarget) return;
+    setIsRestoring(true);
+    try {
+      const result = await ontologyService.restoreOntology(restoreTarget.id);
+      if (result.success) {
+        await loadOntologies(currentPage);
+        await loadCategoryCounts();
+        toast.success('Ontology restored successfully.');
+        setRestoreTarget(null);
+      } else {
+        toast.error(result.error || 'Failed to restore ontology');
+      }
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handlePurge = (ontologyId: string, ontologyName: string) => {
+    setPurgeTarget({ id: ontologyId, name: ontologyName });
+  };
+
+  const confirmPurge = async () => {
+    if (!purgeTarget) return;
+    setIsPurging(true);
+    try {
+      const result = await ontologyService.purgeOntology(purgeTarget.id);
+      if (result.success) {
+        await loadOntologies(currentPage);
+        await loadCategoryCounts();
+        toast.success('Ontology permanently deleted.');
+        setPurgeTarget(null);
+      } else {
+        toast.error(result.error || 'Failed to permanently delete ontology');
+      }
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
   // Auto-reset to full list when the user clears the input
   useEffect(() => {
     if (searchQuery === '' && submittedSearchTerm !== '') {
@@ -192,6 +242,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       name: 'Private',
       count: categoryCounts.private,
       filter: (onto: Ontology) => !onto.properties?.is_public
+    },
+    {
+      name: 'Recently Deleted',
+      count: categoryCounts.deleted,
+      filter: () => true
     }
   ], [categoryCounts]);
 
@@ -429,11 +484,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   const ontologyUuid = (ontology as any).uuid || ontology.id;
                   if (!ontologyUuid) return null; // Skip if no UUID/ID
 
+                  const isTrashView = selectedCategory === 'recently-deleted';
+
                   return (
                   <div
                     key={ontology.id}
-                    onClick={() => onNavigate('ontology-details', ontologyUuid)}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                    onClick={() => { if (!isTrashView) onNavigate('ontology-details', ontologyUuid); }}
+                    className={`bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 ${isTrashView ? '' : 'cursor-pointer'}`}
                   >
                     {/* Thumbnail */}
                     <div className="h-56 bg-gray-50 rounded-t-lg flex items-center justify-center overflow-hidden">
@@ -510,16 +567,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                             {formatDate(ontology.updatedAt || ontology.createdAt)}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onNavigate('ontology-details', ontologyUuid);
-                            }}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            View
-                          </button>
+                        <div className="flex items-center space-x-3">
+                          {isTrashView ? (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRestore(ontologyUuid, ontology.name || 'Untitled Ontology'); }}
+                                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                Restore
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handlePurge(ontologyUuid, ontology.name || 'Untitled Ontology'); }}
+                                className="text-sm text-red-600 hover:text-red-800 font-medium"
+                              >
+                                Delete forever
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate('ontology-details', ontologyUuid);
+                              }}
+                              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              View
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -605,6 +679,65 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* Restore Confirmation Dialog */}
+      {restoreTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4 text-blue-700">Restore ontology?</h2>
+            <p className="text-sm text-gray-700 mb-4">
+              <span className="font-medium">"{restoreTarget.name}"</span> will be moved back to your active ontologies.
+            </p>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setRestoreTarget(null)}
+                disabled={isRestoring}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRestore}
+                disabled={isRestoring}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {isRestoring ? 'Restoring...' : 'Yes, restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purge Confirmation Dialog */}
+      {purgeTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4 text-red-700">Delete forever?</h2>
+            <p className="text-sm text-gray-700 mb-2">
+              You are about to permanently delete <span className="font-medium">"{purgeTarget.name}"</span>.
+            </p>
+            <p className="text-sm text-gray-700 mb-4">
+              This cannot be undone. All comments and reactions on this ontology will also be removed.
+            </p>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setPurgeTarget(null)}
+                disabled={isPurging}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPurge}
+                disabled={isPurging}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+              >
+                {isPurging ? 'Deleting...' : 'Yes, delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

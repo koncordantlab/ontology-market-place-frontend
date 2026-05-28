@@ -233,10 +233,11 @@ class OntologyService {
     searchTerm?: string;
     isPublic?: boolean;
     recentOnly?: boolean;
+    deletedOnly?: boolean;
   } = {}): Promise<OntologyResponse> {
     try {
-      const { limit = 6, offset = 0, searchTerm, isPublic, recentOnly } = options;
-      const data = await BackendApiClient.getOntologies(limit, offset, searchTerm, { isPublic, recentOnly });
+      const { limit = 6, offset = 0, searchTerm, isPublic, recentOnly, deletedOnly } = options;
+      const data = await BackendApiClient.getOntologies(limit, offset, searchTerm, { isPublic, recentOnly, deletedOnly });
       
       // Handle different response structures
       let ontologiesArray: any[];
@@ -561,6 +562,28 @@ class OntologyService {
     } catch (error) {
       console.error('Error deleting ontology:', error);
       const message = error instanceof Error ? error.message : 'Failed to delete ontology';
+      return { success: false, error: message };
+    }
+  }
+
+  async restoreOntology(ontologyId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      await BackendApiClient.restoreOntology(ontologyId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error restoring ontology:', error);
+      const message = error instanceof Error ? error.message : 'Failed to restore ontology';
+      return { success: false, error: message };
+    }
+  }
+
+  async purgeOntology(ontologyId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      await BackendApiClient.purgeOntology(ontologyId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error purging ontology:', error);
+      const message = error instanceof Error ? error.message : 'Failed to permanently delete ontology';
       return { success: false, error: message };
     }
   }

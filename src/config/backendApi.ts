@@ -19,6 +19,8 @@ export const BACKEND_API = {
     CREATE: '/add_ontologies',
     UPDATE: (_id: string) => `/update_ontology/${_id}`,
     DELETE: (_id: string) => `/delete_ontologies`,
+    RESTORE: '/restore_ontologies',
+    PURGE: '/purge_ontologies',
     SEARCH: '/search_ontologies',
   },
   
@@ -190,13 +192,14 @@ export class BackendApiClient {
     limit = 6,
     offset = 0,
     searchTerm?: string,
-    filters?: { isPublic?: boolean; recentOnly?: boolean },
+    filters?: { isPublic?: boolean; recentOnly?: boolean; deletedOnly?: boolean },
   ) {
     const params: Record<string, string> = { limit: String(limit), offset: String(offset) };
     if (searchTerm && searchTerm.trim()) params.search_term = searchTerm.trim();
     if (filters?.isPublic === true) params.is_public = 'true';
     else if (filters?.isPublic === false) params.is_public = 'false';
     if (filters?.recentOnly) params.recent_only = 'true';
+    if (filters?.deletedOnly) params.deleted_only = 'true';
     return this.request(BACKEND_API.ONTOLOGIES.LIST, {
       method: 'GET',
       params,
@@ -239,6 +242,22 @@ export class BackendApiClient {
   static async deleteOntology(id: string) {
     // The backend expects a DELETE with a list of UUIDs in the body
     return this.request(BACKEND_API.ONTOLOGIES.DELETE(id), {
+      method: 'DELETE',
+      body: [id],
+    });
+  }
+
+  /** Restore a soft-deleted ontology. */
+  static async restoreOntology(id: string) {
+    return this.request(BACKEND_API.ONTOLOGIES.RESTORE, {
+      method: 'POST',
+      body: [id],
+    });
+  }
+
+  /** Permanently delete a soft-deleted ontology (creator only, cascades). */
+  static async purgeOntology(id: string) {
+    return this.request(BACKEND_API.ONTOLOGIES.PURGE, {
       method: 'DELETE',
       body: [id],
     });
@@ -346,7 +365,7 @@ export class BackendApiClient {
   /**
    * Get ontology category counts (total, public, private, recent)
    */
-  static async getOntologyCounts(): Promise<{ total: number; public: number; private: number; recent: number }> {
+  static async getOntologyCounts(): Promise<{ total: number; public: number; private: number; recent: number; deleted: number }> {
     return this.request(BACKEND_API.ONTOLOGIES.COUNTS, { method: 'GET' });
   }
 
